@@ -15,15 +15,31 @@ export default function AvailablePlaces({ onSelectPlace }) {
       try {
         const places = await fetchAvailablePlaces();
 
-        navigator.geolocation.getCurrentPosition((position) => {
-          const sortedPlaces = sortPlacesByDistance(
-            places,
-            position.coords.latitude,
-            position.coords.longitude
-          );
-          setAvailablePlaces(sortedPlaces);
+        // Without location access (denied or unsupported), show the
+        // places in their default order instead of loading forever.
+        const showUnsorted = () => {
+          setAvailablePlaces(places);
           setIsFetching(false);
-        });
+        };
+
+        if (!navigator.geolocation) {
+          showUnsorted();
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const sortedPlaces = sortPlacesByDistance(
+              places,
+              position.coords.latitude,
+              position.coords.longitude
+            );
+            setAvailablePlaces(sortedPlaces);
+            setIsFetching(false);
+          },
+          showUnsorted,
+          { timeout: 10000 }
+        );
       } catch (error) {
         setError({
           message:

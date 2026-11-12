@@ -1,5 +1,5 @@
 export const fetchAvailablePlaces = async () => {
-    const response = await fetch('http://localhost:3000/places');
+    const response = await fetch('/api/places');
     const data = await response.json();
 
     if (!response.ok) {
@@ -10,7 +10,7 @@ export const fetchAvailablePlaces = async () => {
 };
 
 export const fetchUserPlaces = async () => {
-    const response = await fetch('http://localhost:3000/user-places');
+    const response = await fetch('/api/user-places');
     const data = await response.json();
 
     if (!response.ok) {
@@ -21,7 +21,7 @@ export const fetchUserPlaces = async () => {
 };
 
 export const updateUserPlaces = async (places) => {
-    const response = await fetch('http://localhost:3000/user-places', {
+    const response = await fetch('/api/user-places', {
         method: "PUT",
         body: JSON.stringify({places}),
         headers: {

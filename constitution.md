@@ -16,8 +16,9 @@ This document defines the non-negotiable foundations for this repository. Read i
 | Layer | Choice | Rationale |
 | --- | --- | --- |
 | Framework | React 18 + Vite | Fast development server and a minimal React setup. |
-| Backend | Express 4 + body-parser | A tiny API is enough to demonstrate fetching and persistence. |
-| Persistence | JSON files | No database setup is needed for the course project. |
+| Backend | Express 5 | A tiny API is enough to demonstrate fetching and persistence; runs as a Vercel Function. |
+| Persistence | Supabase Postgres (postgres.js) | Durable storage on serverless hosting; one schema (`places`) in the shared portfolio database. |
+| Hosting | Vercel Services + Cron | SPA and API ship together on one origin; nightly demo reset. |
 | Styling | Plain CSS | Keeps the focus on React data flow. |
 
 **Rule of thumb:** a new dependency must solve a concrete problem that the current stack cannot solve cleanly. Justify it in the change that introduces it.
@@ -26,23 +27,25 @@ This document defines the non-negotiable foundations for this repository. Read i
 
 ### 1. Scope
 
-A course project focused on effects, data fetching, optimistic UI, and error handling. It is intentionally local and single-user; authentication, per-user storage, and production hosting are out of scope.
+A course project focused on effects, data fetching, optimistic UI, and error handling. It is intentionally single-list; authentication and per-user storage are out of scope. The public demo's shared list is emptied by a nightly reset.
 
 ### 2. Environment Isolation
 
-- This project has no runtime secrets. Do not introduce `.env` files unless a real secret or environment-specific URL appears.
-- If configuration is added, use environment variables and document them in the README.
-- Never commit keys, tokens, database URLs, or credentials.
+- Runtime configuration comes from environment variables: `POSTGRES_URL` / `POSTGRES_URL_NON_POOLING` (Supabase integration) and `CRON_SECRET`. Locally they live in the gitignored root `.env.local` (`vercel env pull .env.local`).
+- Document every variable in the README and `AGENTS.md`.
+- Never commit keys, tokens, database URLs, or credentials, and never log them or send database errors to the browser.
 
 ### 3. Architecture
 
 - All HTTP calls go through `src/helpers/http.js`; components should not build URLs.
 - `App.jsx` owns shared saved-place state; child components receive data and callbacks.
-- The Express API stays a small fixture with explicit routes.
+- The Express API stays small with explicit routes under `/api`, validates input, and never reads files at runtime (SQL lives in `backend/db/sql.js`).
+- The reset endpoint refuses any request without `Authorization: Bearer $CRON_SECRET`.
 
 ### 4. Data and State
 
-- The backend JSON files are the source of truth for available and saved places.
+- The `places` schema is the source of truth for available and saved places; the saved list stores only place ids.
+- Only touch the `places` schema; the database is shared with other portfolio apps.
 - The frontend updates optimistically and must roll back on failure.
 - Geolocation is optional; the app must still work when permission is denied.
 
@@ -54,21 +57,21 @@ A course project focused on effects, data fetching, optimistic UI, and error han
 
 ### 6. Quality Gates
 
-- `npm run lint` and `npm run build` are the gates.
+- `npm run build` is the gate (`npm run lint` needs an ESLint config first).
 - Manually test initial load, geolocation allowed and denied, add, duplicate add, remove, cancel remove, API down, and a failed save.
 - Confirm the error modal and the rollback both behave correctly.
 
 ### 7. Deployment
 
-- Frontend: static build for GitHub Pages.
-- Backend: a Node host or a Supabase replacement; JSON files are not durable hosting storage.
-- Move the API base URL into an environment variable before deploying.
+- One Vercel project (Services in `vercel.json`): `frontend` serves the Vite build, `backend` runs Express. Pushing to `main` deploys production.
+- The nightly cron `/api/cron/reset` empties the saved list.
+- Delete any test data written to production after verifying.
 
 ## What to Avoid
 
 - Hardcoding API URLs in multiple files.
 - Assuming geolocation succeeds or that the user grants permission.
-- Treating the JSON files as durable production storage.
+- Writing to local files from the API (not durable or writable on Vercel).
 - Leaving the UI in a loading state after an error.
 - Adding authentication to a demo that has no user model.
 
